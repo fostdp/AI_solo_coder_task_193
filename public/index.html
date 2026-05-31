@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>烟气脱硫喷淋塔模拟</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:#0a0e1a;color:#e0e6f0;overflow-x:hidden;min-height:100vh}
+.header{background:linear-gradient(135deg,#0d1b2a,#1b2838);padding:14px 28px;border-bottom:1px solid #1e3a5f;display:flex;align-items:center;gap:14px}
+.header h1{font-size:20px;font-weight:700;background:linear-gradient(90deg,#4fc3f7,#81d4fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header .badge{background:#1a3a5c;padding:3px 10px;border-radius:10px;font-size:11px;color:#4fc3f7;border:1px solid #1e5a8a}
+.main{display:grid;grid-template-columns:280px 1fr 300px;gap:12px;padding:12px;height:calc(100vh - 56px)}
+.panel{background:linear-gradient(180deg,#0f1923,#0a1018);border:1px solid #1a2a3a;border-radius:10px;padding:16px;overflow-y:auto}
+.panel-title{font-size:12px;font-weight:600;color:#4fc3f7;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #1a2a3a}
+.control-group{margin-bottom:14px}
+.control-group label{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#8899aa;margin-bottom:4px}
+.control-group label span{color:#4fc3f7;font-weight:600}
+input[type="range"]{width:100%;height:5px;-webkit-appearance:none;background:#1a2a3a;border-radius:2px;outline:none}
+input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;background:#4fc3f7;border-radius:50%;cursor:pointer;box-shadow:0 0 6px rgba(79,195,247,0.4)}
+.btn{width:100%;padding:8px;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-primary{background:linear-gradient(135deg,#1565c0,#0d47a1);color:#e3f2fd}
+.btn-primary:hover{background:linear-gradient(135deg,#1976d2,#1565c0)}
+.btn-secondary{background:linear-gradient(135deg,#00695c,#004d40);color:#e0f2f1;margin-top:6px}
+.btn-secondary:hover{background:linear-gradient(135deg,#00897b,#00695c)}
+.btn-danger{background:linear-gradient(135deg,#c62828,#b71c1c);color:#ffcdd2;margin-top:6px}
+.btn-small{width:auto;padding:3px 8px;font-size:10px;background:#1a3a5c;color:#4fc3f7;border:1px solid #1e5a8a;border-radius:5px}
+.result-card{background:#0d1520;border:1px solid #1a2a3a;border-radius:6px;padding:8px 10px;margin-bottom:6px}
+.result-card .label{font-size:9px;color:#5a7a9a;text-transform:uppercase;letter-spacing:0.4px}
+.result-card .value{font-size:20px;font-weight:700;margin:1px 0}
+.result-card .unit{font-size:10px;color:#5a7a9a}
+.result-card.small .value{font-size:15px}
+.value-green{color:#66bb6a}.value-blue{color:#42a5f5}.value-orange{color:#ffa726}
+.value-red{color:#ef5350}.value-purple{color:#ab47bc}.value-yellow{color:#ffee58}
+.efficiency-bar{height:3px;border-radius:2px;background:#1a2a3a;margin-top:2px}
+.efficiency-bar-fill{height:100%;border-radius:2px;transition:width .5s}
+.canvas-wrap{position:relative;background:linear-gradient(180deg,#080c14,#0a1018);border:1px solid #1a2a3a;border-radius:10px;overflow:hidden}
+.canvas-wrap canvas{display:block;width:100%;height:100%}
+.flood-warning{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#c62828,#8e0000);color:#ffcdd2;padding:6px 16px;border-radius:6px;font-size:12px;font-weight:600;border:2px solid #ffcdd2;box-shadow:0 4px 12px rgba(198,40,40,0.4);display:none;animation:pulse 1.5s infinite;z-index:10}
+.flood-warning.show{display:block}
+.flood-warning.nearflood{background:linear-gradient(135deg,#ef6c00,#c65100);border-color:#ffcc80;color:#fff3e0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.8}}
+.tower-params{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:8px}
+.tp-item{background:#0a1018;border:1px solid #111a24;border-radius:4px;padding:4px 6px;font-size:10px}
+.tp-item .k{color:#5a7a9a}.tp-item .v{color:#4fc3f7;font-weight:600;font-size:12px}
+.eval-box{background:#0d1520;border:1px solid #1a2a3a;border-radius:6px;padding:8px;margin-bottom:6px}
+.eval-grade{font-size:28px;font-weight:800;text-align:center;margin:4px 0}
+.eval-grade.grade-A{color:#66bb6a}.eval-grade.grade-B{color:#ffa726}.eval-grade.grade-C{color:#ff7043}.eval-grade.grade-D{color:#ef5350}
+.eval-items{font-size:10px;line-height:1.6}
+.eval-items .grade-A{color:#66bb6a}.eval-items .grade-B{color:#ffa726}.eval-items .grade-C{color:#ff7043}.eval-items .grade-D{color:#ef5350}
+.opt-candidate{background:#0a1018;border:1px solid #111a24;border-radius:4px;padding:5px 7px;margin-bottom:4px;font-size:10px;cursor:pointer;transition:background .2s}
+.opt-candidate:hover{background:#0d2030}
+.opt-candidate.best{border-color:#66bb6a;background:#0a1a0a}
+.history-table{width:100%;border-collapse:collapse;font-size:10px}
+.history-table th{background:#0d1520;padding:4px 3px;text-align:left;color:#4fc3f7;font-weight:600;border-bottom:1px solid #1a2a3a;position:sticky;top:0}
+.history-table td{padding:3px;border-bottom:1px solid #111a24;color:#8899aa}
+.history-table tr{cursor:pointer;transition:background .2s}
+.history-table tr:hover{background:#0d1520}
+.history-table tr.active{background:#0d2030}
+.history-table tr.active td{color:#4fc3f7}
+.mini-chart{width:100%;height:90px}
+.flood-bar{height:5px;border-radius:2px;background:#1a2a3a;margin-top:3px;overflow:hidden}
+.flood-bar-fill{height:100%;border-radius:2px;transition:width .5s,background .5s}
+.flood-safe{background:linear-gradient(90deg,#66bb6a,#2e7d32)}.flood-warn{background:linear-gradient(90deg,#ffa726,#ef6c00)}.flood-danger{background:linear-gradient(90deg,#ef5350,#c62828)}
+.modal-backdrop{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:100}
+.modal-backdrop.show{display:flex}
+.modal{background:#0f1923;border:1px solid #2a5a8a;border-radius:10px;padding:20px;width:700px;max-width:95vw;max-height:90vh;overflow-y:auto}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #2a5a8a}
+.modal-title{font-size:16px;font-weight:700;color:#4fc3f7}
+.modal-close{background:none;border:none;color:#8899aa;font-size:22px;cursor:pointer}
+.modal-close:hover{color:#ef5350}
+.modal-meta{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.modal-meta-item{background:#0d1520;padding:6px 10px;border-radius:5px;border:1px solid #1a2a3a}
+.modal-meta-item .k{font-size:9px;color:#5a7a9a;text-transform:uppercase}.modal-meta-item .v{font-size:13px;font-weight:600;color:#4fc3f7;margin-top:1px}
+.modal-charts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modal-chart{background:#0a1018;border-radius:6px;padding:6px;border:1px solid #1a2a3a}
+.modal-chart h4{font-size:10px;color:#4fc3f7;margin-bottom:4px;text-transform:uppercase}
+.chart-section{margin-top:8px}
+.chart-section .panel-title{margin-bottom:4px;font-size:11px}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>烟气脱硫喷淋塔模拟系统</h1>
+  <span class="badge">双膜理论 · 粒径分布 · 液泛判据 · 传质框架</span>
+</div>
+<div class="main">
+  <div class="panel" id="controlPanel">
+    <div class="panel-title">操作参数</div>
+    <div class="control-group"><label>液气比 (L/m³) <span id="lgrValue">10.0</span></label><input type="range" id="liquidGasRatio" min="1" max="40" step="0.5" value="10"></div>
+    <div class="control-group"><label>入口SO₂ (ppm) <span id="so2Value">2000</span></label><input type="range" id="inletSO2" min="100" max="5000" step="50" value="2000"></div>
+    <div class="control-group"><label>液滴粒径 (mm) <span id="dpValue">2.5</span></label><input type="range" id="dropletSize" min="0.5" max="8" step="0.1" value="2.5"></div>
+    <div class="control-group"><label>粒径均匀度 n <span id="dpSpreadValue">3.5</span></label><input type="range" id="dpSpread" min="1.5" max="8" step="0.1" value="3.5"></div>
+    <div class="control-group"><label>烟气温度 (°C) <span id="gasTempValue">120</span></label><input type="range" id="gasTemp" min="50" max="200" step="5" value="120"></div>
+    <div class="control-group"><label>浆液温度 (°C) <span id="liquidTempValue">25</span></label><input type="range" id="liquidTemp" min="10" max="60" step="1" value="25"></div>
+    <button class="btn btn-primary" id="runBtn">运行模拟</button>
+    <button class="btn btn-secondary" id="evalBtn">自动评估</button>
+    <button class="btn btn-secondary" id="optBtn">参数优化</button>
+    <button class="btn btn-danger" id="clearBtn">清除历史</button>
+
+    <div class="panel-title" style="margin-top:12px">塔结构参数</div>
+    <div class="tower-params">
+      <div class="tp-item"><div class="k">塔径</div><div class="v">8 m</div></div>
+      <div class="tp-item"><div class="k">塔高</div><div class="v">15 m</div></div>
+      <div class="tp-item"><div class="k">喷淋层</div><div class="v">3 层</div></div>
+      <div class="tp-item"><div class="k">计算分层</div><div class="v">20 层</div></div>
+      <div class="tp-item"><div class="k">气速</div><div class="v">3.0 m/s</div></div>
+      <div class="tp-item"><div class="k">Sauter D32</div><div class="v" id="sauterValue">-- mm</div></div>
+    </div>
+
+    <div class="panel-title">计算结果</div>
+    <div class="result-card"><div class="label">脱硫效率</div><div class="value value-green" id="effValue">--</div><div class="unit">%</div><div class="efficiency-bar"><div class="efficiency-bar-fill" id="effBar" style="width:0%;background:linear-gradient(90deg,#66bb6a,#43a047)"></div></div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <div class="result-card small"><div class="label">出口SO₂</div><div class="value value-orange" id="outSO2Value">--</div><div class="unit">ppm</div></div>
+      <div class="result-card small"><div class="label">浆液pH</div><div class="value value-blue" id="phValue">--</div></div>
+      <div class="result-card small"><div class="label">比表面积</div><div class="value value-purple" id="areaValue">--</div><div class="unit">m²/m³</div></div>
+      <div class="result-card small"><div class="label">增强因子 φ</div><div class="value value-red" id="enhanceValue">--</div></div>
+      <div class="result-card small"><div class="label">液泛比</div><div class="value value-red" id="floodValue">--</div><div class="flood-bar"><div class="flood-bar-fill flood-safe" id="floodBar" style="width:0%"></div></div></div>
+      <div class="result-card small"><div class="label">压降</div><div class="value value-yellow" id="pressureDropValue">--</div><div class="unit">kPa</div></div>
+    </div>
+
+    <div id="evalContainer" style="display:none">
+      <div class="panel-title" style="margin-top:10px">自动评估</div>
+      <div class="eval-box">
+        <div class="eval-grade" id="evalGrade">--</div>
+        <div class="eval-items" id="evalItems"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="canvas-wrap">
+    <div class="flood-warning" id="floodWarning">⚠️ 警告：发生液泛！</div>
+    <canvas id="towerCanvas"></canvas>
+  </div>
+
+  <div class="panel" id="rightPanel">
+    <div class="panel-title">沿塔浓度剖面</div>
+    <canvas class="mini-chart" id="concChart"></canvas>
+    <div class="chart-section"><div class="panel-title">pH 剖面</div><canvas class="mini-chart" id="phChart"></canvas></div>
+    <div class="chart-section"><div class="panel-title">传质速率</div><canvas class="mini-chart" id="transferChart"></canvas></div>
+    <div class="chart-section"><div class="panel-title">效率曲线</div><canvas class="mini-chart" id="effCurveChart"></canvas></div>
+    <div class="chart-section"><div class="panel-title">历史快照 <span style="font-size:9px;color:#5a7a9a;text-transform:none;font-weight:normal">(点击查看剖面)</span></div>
+      <div style="max-height:160px;overflow-y:auto"><table class="history-table"><thead><tr><th>#</th><th>L/G</th><th>粒径</th><th>效率</th><th>pH</th></tr></thead><tbody id="historyBody"></tbody></table></div>
+    </div>
+    <button class="btn-small" id="exportBtn" style="display:none">导出剖面</button>
+    <button class="btn-small" id="closeBtn" style="display:none">关闭</button>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="profileModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="modalTitle">剖面详情</div><button class="modal-close" id="modalCloseBtn">&times;</button></div>
+    <div class="modal-meta" id="modalMeta"></div>
+    <div class="modal-charts">
+      <div class="modal-chart"><h4>SO₂浓度剖面 (ppm)</h4><canvas class="mini-chart" id="modalConcChart"></canvas></div>
+      <div class="modal-chart"><h4>pH剖面</h4><canvas class="mini-chart" id="modalPhChart"></canvas></div>
+      <div class="modal-chart"><h4>传质速率剖面</h4><canvas class="mini-chart" id="modalTransferChart"></canvas></div>
+      <div class="modal-chart"><h4>KGa 剖面</h4><canvas class="mini-chart" id="modalKGaChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="optModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">参数优化结果</div><button class="modal-close" id="optModalCloseBtn">&times;</button></div>
+    <div id="optContent"></div>
+  </div>
+</div>
+
+<script>
+const canvas=document.getElementById('towerCanvas'),ctx=canvas.getContext('2d');
+let simData=null,selectedSnapshotId=null,droplets=[],gasParticles=[],animFrame=null;
+let sweepData=null;
+
+function resizeCanvas(){const w=canvas.parentElement;canvas.width=w.clientWidth*devicePixelRatio;canvas.height=w.clientHeight*devicePixelRatio;ctx.scale(devicePixelRatio,devicePixelRatio);canvas.style.width=w.clientWidth+'px';canvas.style.height=w.clientHeight+'px'}
+
+const lgrSlider=document.getElementById('liquidGasRatio'),so2Slider=document.getElementById('inletSO2'),dpSlider=document.getElementById('dropletSize'),dpSpreadSlider=document.getElementById('dpSpread'),gasTempSlider=document.getElementById('gasTemp'),liquidTempSlider=document.getElementById('liquidTemp');
+
+lgrSlider.oninput=()=>document.getElementById('lgrValue').textContent=(+lgrSlider.value).toFixed(1);
+so2Slider.oninput=()=>document.getElementById('so2Value').textContent=so2Slider.value;
+dpSlider.oninput=()=>document.getElementById('dpValue').textContent=(+dpSlider.value).toFixed(1);
+dpSpreadSlider.oninput=()=>document.getElementById('dpSpreadValue').textContent=(+dpSpreadSlider.value).toFixed(1);
+gasTempSlider.oninput=()=>document.getElementById('gasTempValue').textContent=gasTempSlider.value;
+liquidTempSlider.oninput=()=>document.getElementById('liquidTempValue').textContent=liquidTempSlider.value;
+
+document.getElementById('runBtn').onclick=runSimulation;
+document.getElementById('evalBtn').onclick=runEvaluate;
+document.getElementById('optBtn').onclick=runOptimize;
+document.getElementById('clearBtn').onclick=clearHistory;
+document.getElementById('closeBtn').onclick=closeProfileView;
+document.getElementById('exportBtn').onclick=exportProfile;
+document.getElementById('modalCloseBtn').onclick=()=>document.getElementById('profileModal').classList.remove('show');
+document.getElementById('profileModal').onclick=e=>{if(e.target.id==='profileModal')e.target.classList.remove('show')};
+document.getElementById('optModalCloseBtn').onclick=()=>document.getElementById('optModal').classList.remove('show');
+document.getElementById('optModal').onclick=e=>{if(e.target.id==='optModal')e.target.classList.remove('show')};
+
+function getBody(){return{liquidGasRatio:+lgrSlider.value,inletSO2:+so2Slider.value,gasTemp:+gasTempSlider.value,liquidTemp:+liquidTempSlider.value,dropletSize:+dpSlider.value,dpSpread:+dpSpreadSlider.value}}
+
+async function runSimulation(){
+  try{const r=await fetch('/api/simulate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(getBody())});simData=await r.json();updateResults(simData);initDroplets();initGasParticles();drawCharts(simData);loadSweepCurves();loadHistory()}catch(e){console.error(e)}
+}
+
+async function runEvaluate(){
+  try{const r=await fetch('/api/evaluate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(getBody())});const d=await r.json();showEvaluation(d.evaluation)}catch(e){console.error(e)}
+}
+
+async function runOptimize(){
+  try{const r=await fetch('/api/optimize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...getBody(),targetEfficiency:95})});const d=await r.json();showOptimization(d)}catch(e){console.error(e)}
+}
+
+async function loadSweepCurves(){
+  try{const[rl,rd]=await Promise.all([fetch('/api/sweep/lgr',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(getBody())}).then(r=>r.json()),fetch('/api/sweep/dp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(getBody())}).then(r=>r.json())]);sweepData={lgr:rl,dp:rd};drawEffCurve()}catch(e){console.error(e)}
+}
+
+function updateResults(d){
+  document.getElementById('effValue').textContent=d.efficiency.toFixed(1);
+  document.getElementById('outSO2Value').textContent=d.outletSO2.toFixed(1);
+  document.getElementById('phValue').textContent=d.pH.toFixed(2);
+  document.getElementById('enhanceValue').textContent=d.enhancementFactor.toFixed(1);
+  document.getElementById('areaValue').textContent=d.specificArea.toFixed(1);
+  document.getElementById('floodValue').textContent=d.floodRatio.toFixed(2);
+  document.getElementById('pressureDropValue').textContent=d.pressureDrop.toFixed(1);
+  document.getElementById('sauterValue').textContent=d.sauterMeanDp?d.sauterMeanDp.toFixed(2)+' mm':'-- mm';
+  document.getElementById('effBar').style.width=d.efficiency+'%';
+  document.getElementById('effBar').style.background=d.efficiency>=90?'linear-gradient(90deg,#66bb6a,#2e7d32)':d.efficiency>=70?'linear-gradient(90deg,#ffa726,#ef6c00)':'linear-gradient(90deg,#ef5350,#c62828)';
+  const fb=document.getElementById('floodBar'),fw=document.getElementById('floodWarning');
+  fb.style.width=Math.min(100,d.floodRatio*100)+'%';
+  fb.classList.remove('flood-safe','flood-warn','flood-danger');
+  if(d.flooding){fb.classList.add('flood-danger');fw.classList.add('show');fw.classList.remove('nearflood');fw.textContent='⚠️ 警告：发生液泛！请降低液气比'}
+  else if(d.nearFlooding){fb.classList.add('flood-warn');fw.classList.add('show','nearflood');fw.textContent='⚡ 接近液泛区！建议降低液气比'}
+  else{fb.classList.add('flood-safe');fw.classList.remove('show','nearflood')}
+}
+
+function showEvaluation(ev){
+  const c=document.getElementById('evalContainer');c.style.display='block';
+  const g=document.getElementById('evalGrade');g.textContent=ev.overallGrade;g.className='eval-grade grade-'+ev.overallGrade;
+  let html='';ev.items.forEach(i=>{html+=`<span class="grade-${i.grade}">[${i.grade}]</span> ${i.label}: ${i.detail}<br>`});
+  html+=`<div style="margin-top:4px;color:#4fc3f7">综合评分: ${ev.totalScore}/500</div>`;
+  document.getElementById('evalItems').innerHTML=html;
+}
+
+function showOptimization(opt){
+  const c=document.getElementById('optContent');let html=`<p style="font-size:12px;color:#8899aa;margin-bottom:10px">目标效率: ${opt.targetEfficiency}% | 扫描: ${opt.totalScanned} 组</p>`;
+  if(opt.best)html+=`<div style="background:#0a1a0a;border:1px solid #66bb6a;border-radius:6px;padding:10px;margin-bottom:10px"><div style="color:#66bb6a;font-weight:700;font-size:14px">✓ 推荐参数</div><div style="font-size:12px;margin-top:4px">液气比: <b style="color:#4fc3f7">${opt.best.lgr} L/m³</b> | 粒径: <b style="color:#4fc3f7">${opt.best.dp} mm</b></div><div style="font-size:12px">效率: <b style="color:#66bb6a">${opt.best.efficiency.toFixed(1)}%</b> | pH: ${opt.best.pH.toFixed(2)} | 液泛比: ${opt.best.floodRatio.toFixed(2)} | 评分: ${opt.best.evalResult.totalScore}</div></div>`;
+  html+='<div style="font-size:11px;color:#8899aa;margin-bottom:6px">Top 5 候选:</div>';
+  opt.candidates.forEach((cd,i)=>{
+    const isBest=i===0;html+=`<div class="opt-candidate${isBest?' best':''}" data-lgr="${cd.lgr}" data-dp="${cd.dp}"><b>#${i+1}</b> LGR=${cd.lgr} dp=${cd.dp} → 效率${cd.efficiency.toFixed(1)}% 液泛比${cd.floodRatio.toFixed(2)} 评分${cd.evalResult.totalScore}</div>`;
+  });
+  c.innerHTML=html;
+  c.querySelectorAll('.opt-candidate').forEach(el=>{
+    el.onclick=()=>{
+      lgrSlider.value=el.dataset.lgr;document.getElementById('lgrValue').textContent=(+el.dataset.lgr).toFixed(1);
+      dpSlider.value=el.dataset.dp;document.getElementById('dpValue').textContent=(+el.dataset.dp).toFixed(1);
+      document.getElementById('optModal').classList.remove('show');runSimulation();
+    };
+  });
+  document.getElementById('optModal').classList.add('show');
+}
+
+async function loadHistory(){
+  const rows=await(await fetch('/api/snapshots')).json();const tbody=document.getElementById('historyBody');tbody.innerHTML='';
+  rows.forEach(r=>{const tr=document.createElement('tr');if(selectedSnapshotId===r.id)tr.classList.add('active');tr.dataset.id=r.id;
+    tr.innerHTML=`<td>${r.id}</td><td>${r.liquid_gas_ratio}</td><td>${r.droplet_size?.toFixed(1)||'-'}</td><td>${r.efficiency?.toFixed(1)||'-'}%</td><td>${r.ph_value?.toFixed(1)||'-'}</td>`;
+    tr.onclick=()=>viewSnapshotProfile(r.id);tbody.appendChild(tr)});
+}
+
+async function viewSnapshotProfile(id){
+  selectedSnapshotId=id;
+  try{const s=await(await fetch(`/api/snapshots/${id}`)).json();
+    if(s&&s.layer_data){simData={layers:s.layer_data,inletSO2:s.inlet_so2,outletSO2:s.outlet_so2,efficiency:s.efficiency,pH:s.ph_value,enhancementFactor:100,specificArea:s.specific_area,floodRatio:s.flood_ratio,pressureDrop:s.pressure_drop,dropletSize:s.droplet_size};
+    updateResults(simData);drawCharts(simData);document.getElementById('exportBtn').style.display='inline-block';document.getElementById('closeBtn').style.display='inline-block';loadHistory();showProfileModal(s)}}catch(e){console.error(e)}
+}
+
+function showProfileModal(snap){
+  const m=document.getElementById('profileModal'),layers=snap.layer_data;
+  document.getElementById('modalTitle').textContent=`快照 #${snap.id} - 剖面详情`;
+  document.getElementById('modalMeta').innerHTML=`<div class="modal-meta-item"><div class="k">液气比</div><div class="v">${snap.liquid_gas_ratio} L/m³</div></div><div class="modal-meta-item"><div class="k">粒径</div><div class="v">${snap.droplet_size?.toFixed(1)||'-'} mm</div></div><div class="modal-meta-item"><div class="k">入口SO₂</div><div class="v">${snap.inlet_so2} ppm</div></div><div class="modal-meta-item"><div class="k">出口SO₂</div><div class="v" style="color:#ffa726">${snap.outlet_so2?.toFixed(1)||'-'}</div></div><div class="modal-meta-item"><div class="k">效率</div><div class="v" style="color:#66bb6a">${snap.efficiency?.toFixed(1)||'-'}%</div></div><div class="modal-meta-item"><div class="k">pH</div><div class="v" style="color:#42a5f5">${snap.ph_value?.toFixed(2)||'-'}</div></div>`;
+  if(layers){drawModalChart('modalConcChart',layers.map(l=>l.C_g),'#ef5350',v=>v.toFixed(0));drawModalChart('modalPhChart',layers.map(l=>l.pH),'#42a5f5',v=>v.toFixed(2));drawModalChart('modalTransferChart',layers.map(l=>l.transferRate),'#ab47bc',v=>v.toExponential(1));drawModalChart('modalKGaChart',layers.map(l=>l.KGa||0),'#66bb6a',v=>v.toExponential(1))}
+  m.classList.add('show');
+}
+
+function closeProfileView(){
+  selectedSnapshotId=null;simData=null;
+  ['effValue','outSO2Value','phValue','enhanceValue','areaValue','floodValue','pressureDropValue'].forEach(id=>document.getElementById(id).textContent='--');
+  document.getElementById('sauterValue').textContent='-- mm';
+  document.getElementById('effBar').style.width='0%';document.getElementById('floodBar').style.width='0%';
+  document.getElementById('floodWarning').classList.remove('show','nearflood');
+  document.getElementById('exportBtn').style.display='none';document.getElementById('closeBtn').style.display='none';
+  ['concChart','phChart','transferChart','effCurveChart'].forEach(id=>{const c=document.getElementById(id);c.getContext('2d').clearRect(0,0,c.width,c.height)});loadHistory();
+}
+
+function exportProfile(){
+  if(!simData||!simData.layers)return;const d=JSON.stringify({timestamp:new Date().toLocaleString(),parameters:getBody(),results:{efficiency:simData.efficiency,outletSO2:simData.outletSO2,pH:simData.pH,specificArea:simData.specificArea,floodRatio:simData.floodRatio,pressureDrop:simData.pressureDrop},layers:simData.layers},null,2);
+  const b=new Blob([d],{type:'application/json'}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=`fgd_profile_${Date.now()}.json`;a.click();URL.revokeObjectURL(u);
+}
+
+async function clearHistory(){if(confirm('确定清除所有历史快照？')){await fetch('/api/snapshots',{method:'DELETE'});closeProfileView()}}
+
+function initDroplets(){
+  const lgr=+lgrSlider.value,dp=+dpSlider.value,spread=+dpSpreadSlider.value,cnt=Math.min(100,Math.floor(lgr*3+20));droplets=[];
+  const cw=canvas.width/devicePixelRatio,ch=canvas.height/devicePixelRatio,tL=cw*.22,tR=cw*.62,tT=ch*.08,tB=ch*.88;
+  const baseR=Math.max(1.5,Math.min(4.5,dp*.7)),v=.3+1.5/Math.max(1.5,spread);
+  for(let i=0;i<cnt;i++)droplets.push({x:tL+20+Math.random()*(tR-tL-40),y:tT+Math.random()*(tB-tT),vy:.5+Math.random()*1+(2.5/dp)*.4,vx:(Math.random()-.5)*.35,r:baseR*(.5+Math.random()*v),opacity:.35+Math.random()*.4,absorbed:0});
+}
+
+function initGasParticles(){
+  const so2=+so2Slider.value,cnt=Math.min(100,Math.floor(so2/30+15));gasParticles=[];
+  const cw=canvas.width/devicePixelRatio,ch=canvas.height/devicePixelRatio,tL=cw*.22,tR=cw*.62,tT=ch*.08,tB=ch*.88;
+  for(let i=0;i<cnt;i++)gasParticles.push({x:tL+10+Math.random()*(tR-tL-20),y:tB-Math.random()*(tB-tT),vy:-(.3+Math.random()*.8),vx:(Math.random()-.5)*.5,r:1+Math.random()*2,opacity:.25+Math.random()*.4});
+}
+
+function getCgAt(y,ch){if(!simData||!simData.layers)return 1;const tT=ch*.08,tB=ch*.88,ri=(1-(y-tT)/(tB-tT))*simData.layers.length,idx=Math.max(0,Math.min(simData.layers.length-1,Math.floor(ri)));return simData.layers[idx].C_g/(simData.layers[0].C_g||1)}
+
+function so2Color(c){return`rgba(${Math.floor(200+55*c)},${Math.floor(180*(1-c*.7))},${Math.floor(60*(1-c))},`}
+
+function drawTower(){
+  const cw=canvas.width/devicePixelRatio,ch=canvas.height/devicePixelRatio;
+  ctx.clearRect(0,0,cw,ch);
+  const tL=cw*.22,tR=cw*.62,tT=ch*.08,tB=ch*.88,tW=tR-tL,tH=tB-tT;
+
+  if(simData&&simData.layers){
+    const nL=simData.layers.length,lH=tH/nL;
+    for(let i=0;i<nL;i++){
+      const ld=simData.layers[nL-1-i],mc=simData.layers[0].C_g||1,conc=ld.C_g/mc;
+      const y1=tT+i*lH,y2=y1+lH;
+      const gr=ctx.createLinearGradient(tL,y1,tL,y2);
+      const al=.06+conc*.22,r=Math.floor(120+135*conc),g=Math.floor(80+40*(1-conc)),b=Math.floor(30+20*(1-conc));
+      gr.addColorStop(0,`rgba(${r},${g},${b},${al})`);gr.addColorStop(1,`rgba(${r},${g},${b},${al*.8})`);
+      ctx.fillStyle=gr;ctx.fillRect(tL+4,y1,tW-8,lH);
+    }
+
+    const profX=tL+tW+6,profW=12;
+    ctx.fillStyle='rgba(10,16,24,0.6)';ctx.fillRect(profX,tT,profW,tH);
+    for(let i=0;i<nL;i++){
+      const ld=simData.layers[nL-1-i],mc=simData.layers[0].C_g||1,conc=ld.C_g/mc;
+      const y1=tT+i*lH;
+      const r=Math.floor(50+200*conc),g=Math.floor(100*(1-conc*.5)),b=Math.floor(200*(1-conc));
+      ctx.fillStyle=`rgba(${r},${g},${b},0.9)`;ctx.fillRect(profX+1,y1,profW-2,lH);
+    }
+    ctx.strokeStyle='#2a5a8a';ctx.lineWidth=1;ctx.strokeRect(profX,tT,profW,tH);
+
+    const scaleStep=tH/5;
+    ctx.fillStyle='#5a7a9a';ctx.font='9px Microsoft YaHei';ctx.textAlign='right';
+    for(let i=0;i<=5;i++){const yy=tT+i*scaleStep,hVal=((5-i)/5*15).toFixed(0);ctx.fillText(hVal+'m',profX-3,yy+3);
+      ctx.strokeStyle='rgba(42,90,138,0.3)';ctx.lineWidth=.5;ctx.beginPath();ctx.moveTo(tL+4,yy);ctx.lineTo(profX,yy);ctx.stroke()}
+
+    if(simData.layers.length>=5){
+      ctx.textAlign='left';ctx.font='8px Microsoft YaHei';ctx.fillStyle='#5a7a9a';
+      const bot=simData.layers[0],top=simData.layers[simData.layers.length-1];
+      ctx.fillText(bot.C_g.toFixed(0)+'ppm',profX+profW+3,tT+lH*1.5+3);
+      ctx.fillText(top.C_g.toFixed(0)+'ppm',profX+profW+3,tB-lH*1.5+3);
+    }
+  }
+
+  ctx.strokeStyle='#2a5a8a';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(tL,tT);ctx.lineTo(tL,tB);ctx.lineTo(tL+tW*.15,tB+18);ctx.lineTo(tR-tW*.15,tB+18);ctx.lineTo(tR,tB);ctx.lineTo(tR,tT);ctx.stroke();
+
+  ctx.strokeStyle='#1a3a5a';ctx.lineWidth=1;
+  for(let i=1;i<=3;i++){const y=tT+i*(tH/4),sY=y-8;
+    ctx.beginPath();ctx.moveTo(tL+12,sY);ctx.lineTo(tR-12,sY);ctx.stroke();
+    for(let j=0;j<5;j++){const nx=tL+25+j*(tW-50)/4;
+      ctx.beginPath();ctx.moveTo(nx,sY-4);ctx.lineTo(nx-3,sY+2);ctx.lineTo(nx+3,sY+2);ctx.closePath();ctx.fillStyle='#3a7abf';ctx.fill();
+      for(let k=-2;k<=2;k++){const ang=k*.3,spLen=8+k;
+        ctx.beginPath();ctx.moveTo(nx,sY+2);ctx.lineTo(nx+Math.sin(ang)*spLen,sY+2+Math.cos(ang)*spLen);ctx.strokeStyle='rgba(79,195,247,0.15)';ctx.lineWidth=.5;ctx.stroke()}
+    }
+  }
+
+  const inY=tB-25,inL=tL-50;
+  ctx.strokeStyle='#c47030';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(inL,inY-10);ctx.lineTo(tL,inY-10);ctx.stroke();ctx.beginPath();ctx.moveTo(inL,inY+10);ctx.lineTo(tL,inY+10);ctx.stroke();
+  ctx.fillStyle='#c47030';ctx.font='11px Microsoft YaHei';ctx.textAlign='left';ctx.fillText('烟气入口 →',inL,inY-16);ctx.fillStyle='#e08040';ctx.fillText('SO₂:'+so2Slider.value+'ppm',inL,inY+25);
+
+  const outY=tT+25,outR=tR+50;
+  ctx.strokeStyle='#4a9a5a';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(tR,outY-10);ctx.lineTo(outR,outY-10);ctx.stroke();ctx.beginPath();ctx.moveTo(tR,outY+10);ctx.lineTo(outR,outY+10);ctx.stroke();
+  ctx.fillStyle='#4a9a5a';ctx.fillText('→ 净气出口',tR+5,outY-16);
+  if(simData){ctx.fillStyle='#66bb6a';ctx.fillText('SO₂:'+simData.outletSO2.toFixed(1)+'ppm',tR+5,outY+25)}
+
+  const slX=(tL+tR)/2;ctx.strokeStyle='#4a8abf';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(slX,tT-25);ctx.lineTo(slX,tT);ctx.stroke();ctx.fillStyle='#4a8abf';ctx.font='10px Microsoft YaHei';ctx.textAlign='center';ctx.fillText('↓ 浆液入口',slX,tT-30);ctx.fillText('dp:'+dpSlider.value+'mm n='+dpSpreadSlider.value,slX,tT-14);
+
+  ctx.strokeStyle='#3a5a7a';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(tR+25,tB+8);ctx.lineTo(tR+55,tB+8);ctx.lineTo(tR+55,tB+35);ctx.stroke();ctx.fillStyle='#4a8abf';ctx.textAlign='left';ctx.font='9px Microsoft YaHei';ctx.fillText('浆液池',tR+30,tB+48);
+  if(simData){ctx.fillStyle='#42a5f5';ctx.fillText('pH:'+simData.pH.toFixed(2),tR+30,tB+62)}
+
+  const lX=cw*.68,lY=ch*.1;
+  ctx.fillStyle='#4fc3f7';ctx.font='bold 12px Microsoft YaHei';ctx.textAlign='left';ctx.fillText('浓度图例',lX,lY);
+  const lg=ctx.createLinearGradient(lX,lY+8,lX,lY+90);lg.addColorStop(0,'rgba(255,120,60,0.8)');lg.addColorStop(.5,'rgba(200,100,50,0.5)');lg.addColorStop(1,'rgba(120,80,40,0.2)');
+  ctx.fillStyle=lg;ctx.fillRect(lX,lY+8,14,82);ctx.strokeStyle='#2a5a8a';ctx.lineWidth=1;ctx.strokeRect(lX,lY+8,14,82);ctx.fillStyle='#8899aa';ctx.font='10px Microsoft YaHei';ctx.fillText('高SO₂',lX+18,lY+18);ctx.fillText('低SO₂',lX+18,lY+88);
+
+  if(simData){ctx.fillStyle='#4fc3f7';ctx.font='bold 13px Microsoft YaHei';ctx.fillText('效率:'+simData.efficiency.toFixed(1)+'%',lX,lY+115);ctx.fillStyle='#8899aa';ctx.font='11px Microsoft YaHei';ctx.fillText('L/G:'+lgrSlider.value+' L/m³',lX,lY+133);ctx.fillText('粒径:'+dpSlider.value+'mm n='+dpSpreadSlider.value,lX,lY+148);ctx.fillText('a:'+simData.specificArea.toFixed(1)+' m²/m³',lX,lY+163);ctx.fillText('液泛比:'+simData.floodRatio.toFixed(2),lX,lY+178);ctx.fillText('压降:'+simData.pressureDrop.toFixed(1)+' kPa',lX,lY+193)}
+}
+
+function updateAndDrawDroplets(){
+  const cw=canvas.width/devicePixelRatio,ch=canvas.height/devicePixelRatio,tL=cw*.22,tR=cw*.62,tT=ch*.08,tB=ch*.88;
+  for(const d of droplets){d.y+=d.vy;d.x+=d.vx;const conc=getCgAt(d.y,ch);d.absorbed=Math.max(d.absorbed,1-conc);
+    if(d.y>tB-8){d.y=tT+Math.random()*15;d.x=tL+20+Math.random()*(tR-tL-40);d.absorbed=0}
+    if(d.x<tL+8)d.vx=Math.abs(d.vx);if(d.x>tR-8)d.vx=-Math.abs(d.vx);
+    const b=Math.floor(150+105*d.absorbed),g=Math.floor(180-80*d.absorbed),r=Math.floor(60+80*d.absorbed);
+    ctx.beginPath();ctx.arc(d.x,d.y,d.r,0,Math.PI*2);ctx.fillStyle=`rgba(${r},${g},${b},${d.opacity})`;ctx.fill();
+    ctx.beginPath();ctx.arc(d.x-d.r*.3,d.y-d.r*.3,d.r*.25,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,255,${d.opacity*.25})`;ctx.fill();
+  }
+}
+
+function updateAndDrawGas(){
+  const cw=canvas.width/devicePixelRatio,ch=canvas.height/devicePixelRatio,tL=cw*.22,tR=cw*.62,tT=ch*.08,tB=ch*.88;
+  for(const p of gasParticles){p.y+=p.vy;p.x+=p.vx;const conc=getCgAt(p.y,ch);p.opacity=.15+conc*.5;p.r=1+conc*2.2;
+    if(p.y<tT+8){p.y=tB-Math.random()*25;p.x=tL+10+Math.random()*(tR-tL-20)}
+    if(p.x<tL+6)p.vx=Math.abs(p.vx);if(p.x>tR-6)p.vx=-Math.abs(p.vx);
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=so2Color(conc)+p.opacity+')';ctx.fill();
+  }
+}
+
+function animate(){ctx.save();ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);drawTower();updateAndDrawGas();updateAndDrawDroplets();ctx.restore();animFrame=requestAnimationFrame(animate)}
+
+function drawChart(canvasId,values,opts){
+  const c=document.getElementById(canvasId);if(!c)return;const cx=c.getContext('2d'),dpr=devicePixelRatio||1,r=c.getBoundingClientRect();
+  c.width=r.width*dpr;c.height=r.height*dpr;cx.scale(dpr,dpr);const w=r.width,h=r.height;
+  cx.clearRect(0,0,w,h);cx.fillStyle='#0a1018';cx.fillRect(0,0,w,h);
+  const pad={l:8,r:8,t:8,b:16},pW=w-pad.l-pad.r,pH=h-pad.t-pad.b;
+  const maxV=Math.max(...values)||1,minV=Math.min(...values),rng=maxV-minV||1;
+  cx.strokeStyle='#1a2a3a';cx.lineWidth=.5;for(let i=0;i<=3;i++){const y=pad.t+pH*i/3;cx.beginPath();cx.moveTo(pad.l,y);cx.lineTo(pad.l+pW,y);cx.stroke()}
+  cx.beginPath();cx.strokeStyle=opts.color;cx.lineWidth=1.5;
+  for(let i=0;i<values.length;i++){const x=pad.l+(i/(values.length-1))*pW,y=pad.t+pH-((values[i]-minV)/rng)*pH;i===0?cx.moveTo(x,y):cx.lineTo(x,y)}
+  cx.stroke();
+  const gr=cx.createLinearGradient(0,pad.t,0,pad.t+pH);gr.addColorStop(0,opts.color+'33');gr.addColorStop(1,opts.color+'05');
+  cx.beginPath();for(let i=0;i<values.length;i++){const x=pad.l+(i/(values.length-1))*pW,y=pad.t+pH-((values[i]-minV)/rng)*pH;i===0?cx.moveTo(x,y):cx.lineTo(x,y)}
+  cx.lineTo(pad.l+pW,pad.t+pH);cx.lineTo(pad.l,pad.t+pH);cx.closePath();cx.fillStyle=gr;cx.fill();
+  cx.fillStyle='#5a7a9a';cx.font='8px Microsoft YaHei';cx.textAlign='left';cx.fillText(opts.fmt(maxV),pad.l,pad.t+8);cx.fillText(opts.fmt(minV),pad.l,pad.t+pH-2);
+  cx.textAlign='center';cx.fillText('塔底→塔顶',pad.l+pW/2,h-2);
+}
+
+function drawCharts(data){
+  if(!data||!data.layers)return;
+  drawChart('concChart',data.layers.map(l=>l.C_g),{color:'#ef5350',fmt:v=>v.toFixed(0)});
+  drawChart('phChart',data.layers.map(l=>l.pH),{color:'#42a5f5',fmt:v=>v.toFixed(1)});
+  drawChart('transferChart',data.layers.map(l=>l.transferRate),{color:'#ab47bc',fmt:v=>v.toExponential(0)});
+}
+
+function drawEffCurve(){
+  if(!sweepData)return;const c=document.getElementById('effCurveChart');if(!c)return;const cx=c.getContext('2d'),dpr=devicePixelRatio||1,r=c.getBoundingClientRect();
+  c.width=r.width*dpr;c.height=r.height*dpr;cx.scale(dpr,dpr);const w=r.width,h=r.height;
+  cx.clearRect(0,0,w,h);cx.fillStyle='#0a1018';cx.fillRect(0,0,w,h);
+  const pad={l:24,r:8,t:8,b:16},pW=w-pad.l-pad.r,pH=h-pad.t-pad.b;
+
+  const lgrD=sweepData.lgr,dpD=sweepData.dp;
+  const allEff=[...lgrD.map(d=>d.efficiency),...dpD.map(d=>d.efficiency)];
+  const maxE=Math.min(100,Math.max(...allEff)*1.05),minE=Math.max(0,Math.min(...allEff)*.9);
+  const rngE=maxE-minE||1;
+
+  cx.strokeStyle='#1a2a3a';cx.lineWidth=.5;for(let i=0;i<=3;i++){const y=pad.t+pH*i/3;cx.beginPath();cx.moveTo(pad.l,y);cx.lineTo(pad.l+pW,y);cx.stroke()}
+
+  cx.beginPath();cx.strokeStyle='#4fc3f7';cx.lineWidth=1.5;
+  for(let i=0;i<lgrD.length;i++){const x=pad.l+(i/(lgrD.length-1))*pW,y=pad.t+pH-((lgrD[i].efficiency-minE)/rngE)*pH;i===0?cx.moveTo(x,y):cx.lineTo(x,y)}
+  cx.stroke();
+
+  cx.beginPath();cx.strokeStyle='#ffa726';cx.lineWidth=1.5;cx.setLineDash([3,3]);
+  for(let i=0;i<dpD.length;i++){const x=pad.l+(i/(dpD.length-1))*pW,y=pad.t+pH-((dpD[i].efficiency-minE)/rngE)*pH;i===0?cx.moveTo(x,y):cx.lineTo(x,y)}
+  cx.stroke();cx.setLineDash([]);
+
+  cx.fillStyle='#5a7a9a';cx.font='8px Microsoft YaHei';cx.textAlign='right';cx.fillText(maxE.toFixed(0)+'%',pad.l-2,pad.t+8);cx.fillText(minE.toFixed(0)+'%',pad.l-2,pad.t+pH-2);
+  cx.textAlign='left';
+  cx.fillStyle='#4fc3f7';cx.fillRect(pad.l,h-6,8,3);cx.fillText('L/G',pad.l+10,h-3);
+  cx.fillStyle='#ffa726';cx.fillRect(pad.l+40,h-6,8,3);cx.fillText('dp',pad.l+50,h-3);
+}
+
+function drawModalChart(id,values,color,fmt){
+  requestAnimationFrame(()=>{const c=document.getElementById(id);if(!c)return;const cx=c.getContext('2d'),dpr=devicePixelRatio||1,r=c.getBoundingClientRect();
+  c.width=r.width*dpr;c.height=r.height*dpr;cx.scale(dpr,dpr);const w=r.width,h=r.height;
+  cx.clearRect(0,0,w,h);cx.fillStyle='#0a1018';cx.fillRect(0,0,w,h);
+  const pad={l:8,r:8,t:8,b:16},pW=w-pad.l-pad.r,pH=h-pad.t-pad.b;
+  const maxV=Math.max(...values)||1,minV=Math.min(...values),rng=maxV-minV||1;
+  cx.strokeStyle='#1a2a3a';cx.lineWidth=.5;for(let i=0;i<=3;i++){const y=pad.t+pH*i/3;cx.beginPath();cx.moveTo(pad.l,y);cx.lineTo(pad.l+pW,y);cx.stroke()}
+  cx.beginPath();cx.strokeStyle=color;cx.lineWidth=1.5;
+  for(let i=0;i<values.length;i++){const x=pad.l+(i/(values.length-1))*pW,y=pad.t+pH-((values[i]-minV)/rng)*pH;i===0?cx.moveTo(x,y):cx.lineTo(x,y)}
+  cx.stroke();
+  cx.fillStyle='#5a7a9a';cx.font='8px Microsoft YaHei';cx.textAlign='left';cx.fillText(fmt(maxV),pad.l,pad.t+8);cx.fillText(fmt(minV),pad.l,pad.t+pH-2);cx.textAlign='center';cx.fillText('塔底→塔顶',pad.l+pW/2,h-2)})}
+
+window.addEventListener('resize',()=>{resizeCanvas();if(simData){initDroplets();initGasParticles()}});
+resizeCanvas();initDroplets();initGasParticles();animate();loadHistory();
+</script>
+</body>
+</html>
